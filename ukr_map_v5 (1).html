@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="uk"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#10151d"><title>UKR MAP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10151d;color:#f4f6fa;font-family:system-ui,-apple-system,Arial}
+header{padding:16px;display:flex;align-items:center;justify-content:space-between;background:#171f2a;border-bottom:1px solid #344152}
+.brand{display:flex;gap:11px;align-items:center}.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(#1674d1 50%,#ffd21f 50%);display:grid;place-items:center;color:#111;font-weight:900;font-size:20px}
+h1{font-size:18px;letter-spacing:2px;margin:0}small{color:#9eacbd}
+.status{font-size:11px;color:#ffdf63;border:1px solid #65551b;padding:7px 9px;border-radius:20px}
+main{max-width:950px;margin:auto;padding:14px}.heading{display:flex;justify-content:space-between;align-items:center;margin:4px 0 12px;gap:8px}h2{font-size:17px;margin:0}.count{background:#403612;color:#ffdf53;border-radius:30px;padding:7px 11px;font-size:12px;font-weight:700}
+#map{height:min(69vh,680px);min-height:390px;border:1px solid #354254;border-radius:17px;overflow:hidden;background:#202a37}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.palette{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;padding:12px;background:#1a2430;border:1px solid #344152;border-radius:14px}.palette strong{font-size:12px;color:#c7d2df;margin-right:3px}.swatch{width:30px;height:30px;padding:0;border:2px solid #ffffff55;border-radius:50%;cursor:pointer}.swatch[aria-pressed=true]{outline:3px solid #fff;outline-offset:2px}.swatch:focus-visible{outline:3px solid #fff;outline-offset:3px}button{border:0;border-radius:11px;padding:11px 14px;font-weight:700;background:#ffd21f;color:#171717}button.alt{background:#293544;color:#f2f5f9;border:1px solid #405064}
+.info{margin-top:12px;background:#1a2430;border:1px solid #344152;border-radius:14px;padding:13px;font-size:13px}.muted{color:#9eacbd;font-size:12px;margin-top:6px}
+.leaflet-container{font:inherit}.leaflet-control-attribution{font-size:9px!important}
+@media(max-width:500px){main{padding:10px}#map{height:65vh;min-height:360px}}
+</style></head><body>
+<header><div class="brand"><div class="logo">✦</div><div><h1>UKR MAP</h1><small>Інтерактивна карта України</small></div></div><div class="status">РУЧНИЙ РЕЖИМ</div></header>
+<main><div class="heading"><div><h2>Обери області на карті</h2><div class="muted">Натисни на область, щоб зробити її жовтою</div></div><div class="count" id="count">0 вибрано</div></div>
+<div id="map"></div><div class="palette"><strong>Колір областей:</strong><button class="swatch" data-color="#ffd21f" style="background:#ffd21f" aria-label="Жовтий" aria-pressed="true"></button><button class="swatch" data-color="#ff4d6d" style="background:#ff4d6d" aria-label="Червоний" aria-pressed="false"></button><button class="swatch" data-color="#35d07f" style="background:#35d07f" aria-label="Зелений" aria-pressed="false"></button><button class="swatch" data-color="#3da5ff" style="background:#3da5ff" aria-label="Синій" aria-pressed="false"></button><button class="swatch" data-color="#b783ff" style="background:#b783ff" aria-label="Фіолетовий" aria-pressed="false"></button><button class="swatch" data-color="#ffffff" style="background:#ffffff" aria-label="Білий" aria-pressed="false"></button></div>\n<div class="actions"><button id="all">Усі вибрані кольором</button><button class="alt" id="clear">Скинути</button><button class="alt" id="invert">Інвертувати</button></div>
+<div class="info"><b id="selectedTitle">Нічого не вибрано</b><div class="muted" id="selectedList">Торкнись потрібної області на карті. Вибір змінюється тільки вручну.</div></div>
+<div class="muted" style="text-align:center;margin:14px 0">Межі областей завантажуються з відкритих геоданих. Карта потребує інтернету. Це не сервіс сповіщень про повітряні тривоги.</div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map',{zoomControl:true,scrollWheelZoom:true,doubleClickZoom:false,touchZoom:true,attributionControl:false, minZoom:2,maxZoom:12, zoomSnap:0.25}).setView([48.8,31.2],6);
+// No basemap tiles: outside Ukraine remains completely black, with no labels or neighboring countries.
+map.getContainer().style.background='#000000';
+// A double tap/click on the same place must not change the zoom level.
+map.getContainer().addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();},true);
+const regionColors=new Map();let layer;let activeColor='#ffd21f';
+function nameOf(f){const p=f.properties||{};return p.name||p.NAME||p.Name||p.name_uk||p.NAME_UK||p.shapeName||p.ADM1_UA||'Область'}
+function style(f){return {color:'#111923',weight:1.5,fillColor:regionColors.get(nameOf(f))||'#424e5d',fillOpacity:.82};}
+function update(){if(layer)layer.setStyle(style);const n=regionColors.size;document.getElementById('count').textContent=n+' зафарбовано';document.getElementById('selectedTitle').textContent=n?`Зафарбовано областей: ${n}`:'Нічого не вибрано';document.getElementById('selectedList').textContent=n?'Кожна область зберігає свій колір, навіть після вибору іншого.':'Обери колір нижче й торкнись області на карті.'}
+function toggle(feature){const n=nameOf(feature);if(regionColors.get(n)===activeColor)regionColors.delete(n);else regionColors.set(n,activeColor);update()}
+const sources=[
+'https://cdn.jsdelivr.net/gh/darmat1/ukraine-geo-data@main/geodata/Ukraine.geojson',
+'https://raw.githubusercontent.com/romansverdan/Ukraine-Map/main/ukraine-adm-regions.json'
+];
+async function load(i=0){try{const r=await fetch(sources[i]);if(!r.ok)throw Error('load');const data=await r.json();const features=data.features||data;layer=L.geoJSON(features,{style,onEachFeature:(f,l)=>{l.on('click',()=>toggle(f));}}).addTo(map);map.fitBounds(layer.getBounds(),{padding:[10,10]});map.setMaxBounds(layer.getBounds().pad(1.5));document.getElementById('selectedList').textContent='Натискай на області, щоб перемикати їхній колір.';update()}catch(e){if(i+1<sources.length)return load(i+1);document.getElementById('selectedTitle').textContent='Не вдалося завантажити межі';document.getElementById('selectedList').textContent='Перевір інтернет і перезавантаж сторінку.'}}
+document.querySelectorAll('.swatch').forEach(btn=>btn.addEventListener('click',()=>{activeColor=btn.dataset.color;document.querySelectorAll('.swatch').forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));if(layer)layer.setStyle(style)}));
+document.getElementById('all').onclick=()=>{if(layer)layer.eachLayer(l=>regionColors.set(nameOf(l.feature),activeColor));update()};
+document.getElementById('clear').onclick=()=>{regionColors.clear();update()};
+document.getElementById('invert').onclick=()=>{if(layer)layer.eachLayer(l=>{const n=nameOf(l.feature);if(regionColors.has(n))regionColors.delete(n);else regionColors.set(n,activeColor)});update()};
+load();
+</script></body></html>
